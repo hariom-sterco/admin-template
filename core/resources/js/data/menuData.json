@@ -84,6 +84,13 @@
                 "available": true,
                 "link": "seo.index",
                 "permission": "view-seo"
+            },
+            {
+                "text": "Redirection",
+                "icon": "bx bx-link",
+                "available": true,
+                "link": "redirection.index",
+                "permission": "view-redirection"
             }
         ]
     },

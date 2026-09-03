@@ -4,11 +4,18 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class MenuPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
+
+        Role::firstOrCreate([
+            'name' => 'Super Admin',
+            'guard_name' => 'web',
+        ]);
+
         $permissions = [
             'view-page',
             'create-page',
@@ -60,6 +67,10 @@ class MenuPermissionsSeeder extends Seeder
             'create-seo',
             'edit-seo',
             'delete-seo',
+            'view-redirection',
+            'create-redirection',
+            'edit-redirection',
+            'delete-redirection',
             'view-section',
             'create-section',
             'delete-section',
