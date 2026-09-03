@@ -6,6 +6,7 @@ use Inertia\Inertia;
 use App\Models\Redirection;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Validation\Rule;
 
 class RedirectionController extends Controller
 {
@@ -21,29 +22,20 @@ class RedirectionController extends Controller
     {
         $search = $request->input('search');
 
-        // $seo = SeoSetting::filter(['search' => $search])->orderBy('id', 'DESC')->paginate(10)->withQueryString()->through(function ($item) {
-        //     return [
-        //         'id' => $item->id,
-        //         'url' => $item->url,
-        //         'meta_title' => $item->meta_title,
-        //         'meta_description' => $item->meta_description,
-        //         'keywords' => $item->keywords ?? [],
-        //         'search_terms' => $item->search_terms ?? [],
-        //         'canonical_url' => $item->canonical_url,
-        //         'og_title' => $item->og_title,
-        //         'og_description' => $item->og_description,
-        //         'og_image' => $item->og_image ? asset($item->og_image) : asset('assets/img/placeholder.png'),
-        //         'og_type' => $item->og_type,
-        //         'og_url' => $item->og_url,
-        //         'created_at' => $item->created_at->format('M d, Y'),
-        //         'updated_at' => $item->updated_at->format('M d, Y'),
-        //     ];
-        // });
-
+        $redirections = Redirection::filter(['search' => $search])->orderBy('id', 'DESC')->paginate(10)->withQueryString()->through(function ($item) {
+            return [
+                'id' => $item->id,
+                'old_url' => $item->old_url,
+                'new_url' => $item->new_url,
+                'status' => $item->status,
+                'created_at' => $item->created_at->format('M d, Y'),
+                'updated_at' => $item->updated_at->format('M d, Y'),
+            ];
+        });
 
         return Inertia::render('Redirection/Index', [
             'searchTerm' => $search ?? '',
-            // 'seo' => $seo,
+            'redirections' => $redirections,
         ]);
     }
 
@@ -61,4 +53,64 @@ class RedirectionController extends Controller
 
         return Inertia::render('Redirection/Create');
     }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'old_url' => ['required', 'string', 'max:255', 'unique:redirections,old_url', 'different:new_url'],
+            'new_url' => ['required', 'string', 'max:255', 'different:old_url'],
+            'status' => ['required', 'in:0,1'],
+            'search_terms' => 'nullable|array',
+        ], [
+            'old_url.different' => 'The old URL and new URL cannot be the same.',
+            'new_url.different' => 'The old URL and new URL cannot be the same.',
+        ]);
+
+        Redirection::create($validated);
+
+        $returnUrl = session()->pull('return_url.redirection', route('redirection.index'));
+        return redirect()->to($returnUrl)->with('success', 'Redirection Added To Page!');
+    }
+
+    public function edit(Redirection $redirection)
+    {
+        $previousUrl = url()->previous();
+
+        if ($previousUrl && str_contains($previousUrl, '/redirection')) {
+            session(['return_url.redirection' => $previousUrl]);
+        }
+
+        return Inertia::render('Redirection/Edit', [
+            'redirection' => $redirection,
+        ]);
+    }
+
+
+    public function update(Request $request, Redirection $redirection)
+    {
+        $validated = $request->validate([
+             'old_url' => ['required', 'string', 'max:255', Rule::unique('redirections', 'old_url')->ignore($redirection->id), 'different:new_url'],
+            'new_url' => ['required', 'string', 'max:255', 'different:old_url'],
+            'status' => ['required', 'in:0,1'],
+            'search_terms' => 'nullable|array',
+        ], [
+            'old_url.different' => 'The old URL and new URL cannot be the same.',
+            'new_url.different' => 'The old URL and new URL cannot be the same.',
+        ]);
+
+
+        $redirection->update($validated);
+
+        $returnUrl = session()->pull('return_url.redirection', route('redirection.index'));
+        return redirect()->to($returnUrl)->with('success', 'Redirection updated successfully!');
+    }
+
+
+     public function destroy(Redirection $redirection)
+    {
+        $redirection->delete();
+
+        return back()->with('success', 'Redirection deleted successfully!');
+    }
+
 }

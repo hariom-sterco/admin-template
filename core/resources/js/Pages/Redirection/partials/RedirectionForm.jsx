@@ -1,12 +1,17 @@
-import TextInput from '@/Components/Form/TextInput';
-import Type from 'lucide-react/dist/esm/icons/type.js';
+import TextInput from "@/Components/Form/TextInput";
+import Type from "lucide-react/dist/esm/icons/type.js";
 
-const RedirectionFrom = ({ data, errors, processing, onDataChange, children,  progress,  }) => {
+const RedirectionFrom = ({
+    data,
+    errors,
+    processing,
+    onDataChange,
+    children,
+    progress,
+}) => {
     return (
         <>
             <div className="row">
-
-
                 {/* old Url */}
                 <div className="mb-3 col-md-6">
                     <TextInput
@@ -20,6 +25,11 @@ const RedirectionFrom = ({ data, errors, processing, onDataChange, children,  pr
                         disabled={processing}
                         icon={<Type size={16} />}
                     />
+                    {errors.old_url && (
+                        <div className="text-danger small">
+                            {errors.old_url}
+                        </div>
+                    )}
                 </div>
 
                 {/* New URL */}
@@ -35,14 +45,27 @@ const RedirectionFrom = ({ data, errors, processing, onDataChange, children,  pr
                         disabled={processing}
                         icon={<Type size={16} />}
                     />
+                    {errors.new_url && (
+                        <div className="text-danger small">
+                            {errors.new_url}
+                        </div>
+                    )}
                 </div>
 
-
-
-
-
-
-
+                <div className="mb-3 col-md-6">
+                    <label className="form-label">Status *</label>
+                    <select
+                        className="form-select"
+                        value={data.status}
+                        onChange={(e) => onDataChange("status", e.target.value)}
+                    >
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                    {errors.status && (
+                        <div className="text-danger small">{errors.status}</div>
+                    )}
+                </div>
             </div>
 
             {/* Progress Bar */}
