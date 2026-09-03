@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\PageSectionController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\ProjectEnquiryAdminController;
+use App\Http\Controllers\Admin\RedirectionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SectionBuilderController;
 use App\Http\Controllers\Admin\SeoSettingController;
@@ -135,6 +136,10 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     Route::prefix('seo')->group(function () {
         Route::get('/{seo}/destroy', [SeoSettingController::class, 'destroy'])->name('seo.destroy');
     });
+
+    //Redirection
+    Route::resource('redirection', RedirectionController::class)->except(['destroy']);
+
 
     //Support Information
     Route::resource('support-information', SupportInformationController::class);
