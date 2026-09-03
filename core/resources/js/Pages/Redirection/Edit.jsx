@@ -4,20 +4,20 @@ import RedirectionForm from "./partials/RedirectionForm";
 import FormLayout from "../../Components/FormLayout";
 import FormActions from "@/Components/FormActions";
 
-const RedirectionCreate = (props) => {
+const RedirectionCreate = ({ redirection }) => {
     const [keywordInput, setKeywordInput] = useState("");
     const [searchTermsInput, setSearchTermsInput] = useState("");
     const { data, setData, post, progress, errors, processing } = useForm({
-        old_url: "",
-        new_url: "",
-        status: "1",
-        search_terms: [],
+        _method: "PUT",
+        old_url: redirection.old_url || "",
+        new_url: redirection.new_url || "",
+        status: redirection.status || "1",
+        search_terms: redirection.search_terms || [],
     });
-
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post(route("redirection.store"));
+        post(route("redirection.update", redirection.id));
     };
 
     const addKeyword = () => {
@@ -29,8 +29,6 @@ const RedirectionCreate = (props) => {
             setKeywordInput("");
         }
     };
-
-    
 
     const handleKeyPress = (e) => {
         if (e.key === "Enter") {
@@ -73,8 +71,8 @@ const RedirectionCreate = (props) => {
     return (
         <>
             <FormLayout
-                title="Create Redirection"
-                subtitle="Add a new redirection to the website"
+                title="Update Redirection"
+                subtitle="Modify an existing redirection"
                 onSubmit={handleSubmit}
                 processing={processing}
             >
@@ -89,7 +87,7 @@ const RedirectionCreate = (props) => {
                 >
                     <FormActions
                         processing={processing}
-                        submitText="Create Redirection"
+                        submitText="Update Redirection"
                         cancelText="Cancel"
                         submitButtonProps={{
                             variant: "primary",

@@ -1,24 +1,59 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
-import TableHeader from '@/Components/TableHeader';
+import { debounce } from "lodash";
+import { router, usePage } from "@inertiajs/react";
+import TableHeader from "@/Components/TableHeader";
+import { Link, useForm } from "@inertiajs/react";
+import { useDeleteConfirmation } from "@/hooks/useDeleteConfirmation";
+import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal";
+import Pagination from "@/Components/Pagination";
 
-
-export default function index(redirections, searchTerm) {
-
+export default function index({ redirections, searchTerm }) {
     const [query, setQuery] = useState(searchTerm || "");
-    return (
 
+    const { flash } = usePage().props;
+
+    const { processing } = useForm();
+
+    const truncateText = (text, length = 100) => {
+        if (!text) return "—";
+        return text.length > length ? text.substring(0, length) + "..." : text;
+    };
+
+    const { modalRef, itemToDelete, confirmDelete, handleDelete } =
+        useDeleteConfirmation("redirection.destroy");
+
+    useEffect(() => {
+        const delaySearch = debounce(() => {
+            router.get(
+                "redirection",
+                { search: query },
+                { preserveState: true, replace: true },
+            );
+        }, 300);
+
+        delaySearch();
+        return () => delaySearch.cancel();
+    }, [query]);
+
+    useEffect(() => {
+        if (flash.success) {
+            toast.success(flash.success);
+        }
+    }, [flash.success]);
+
+    return (
         <>
             <h1 className="text-muted">Redirection</h1>
             <ToastContainer />
 
             <div className="card">
                 <TableHeader
-                    // searchValue={query}
-                    // onSearchChange={setQuery}
+                    searchValue={query}
+                    onSearchChange={setQuery}
                     searchPlaceholder="Search By Redirection Link..."
                     addButtonText="Add Redirection"
-                    addButtonRoute={route('redirection.create')}
+                    addButtonRoute={route("redirection.create")}
                     searchColClass="col-md-6 col-12"
                     filterColClass=""
                     buttonColClass="col-md-6 col-12"
@@ -35,41 +70,27 @@ export default function index(redirections, searchTerm) {
                             </tr>
                         </thead>
                         <tbody>
-                            {/* {seo.data.map((item) => (
+                            {redirections.data.map((item) => (
                                 <tr key={item.id}>
                                     <td>
-                                        <i className="bx bx-text bx-sm me-3"></i>
-                                        {truncateText(item.meta_title)}
+                                        <i className="bx bx-link bx-sm me-3"></i>
+                                        {truncateText(item.old_url)}
                                     </td>
                                     <td>
                                         <i className="bx bx-link bx-sm me-3"></i>
-                                        {truncateText(item.url)}
+                                        {truncateText(item.new_url)}
                                     </td>
+
                                     <td>
-                                        <span className="badge bg-label-primary">{item.og_type}</span>
+                                        <span
+                                            className={`badge ${item.status ? "bg-label-success" : "bg-label-danger"}`}
+                                        >
+                                            {item.status
+                                                ? "Active"
+                                                : "Inactive"}
+                                        </span>
                                     </td>
-                                    <td>
-                                        {item.og_image ? (
-                                            <img
-                                                src={item.og_image}
-                                                alt="OG Image"
-                                                className="img-thumbnail"
-                                                style={{
-                                                    width: "80px",
-                                                    height: "50px",
-                                                    objectFit: "cover",
-                                                    cursor: "pointer",
-                                                }}
-                                                onClick={() => showImageModal(item.og_image)}
-                                            />
-                                        ) : (
-                                            <span className="text-muted">No image</span>
-                                        )}
-                                    </td>
-                                    <td>
-                                        <i className="bx bx-globe bx-sm me-3"></i>
-                                        {truncateText(item.canonical_url)}
-                                    </td>
+
                                     <td>
                                         <div className="d-flex align-items-center gap-1">
                                             <div className="dropdown">
@@ -80,38 +101,71 @@ export default function index(redirections, searchTerm) {
                                                     <i className="bx bx-dots-vertical-rounded"></i>
                                                 </button>
                                                 <div className="dropdown-menu">
-                                                    <a
-                                                        href="#viewDetailsModal"
-                                                        data-bs-toggle="modal"
-                                                        onClick={() => showViewModal(item)}
-                                                        className="dropdown-item"
-                                                    >
-                                                        <i className="bx bx-show me-1"></i> View
-                                                    </a>
                                                     <Link
                                                         className="dropdown-item"
-                                                        href={route("seo.edit", item.id)}
+                                                        href={route(
+                                                            "redirection.edit",
+                                                            item.id,
+                                                        )}
                                                     >
-                                                        <i className="bx bx-edit-alt me-1"></i> Edit
+                                                        <i className="bx bx-edit-alt me-1"></i>{" "}
+                                                        Edit
                                                     </Link>
                                                     <a
-                                                        onClick={() => confirmDelete(item.id, { name: item.name })}
+                                                        onClick={() =>
+                                                            confirmDelete(
+                                                                item.id,
+                                                                {
+                                                                    name: item.name,
+                                                                },
+                                                            )
+                                                        }
                                                         className="dropdown-item"
                                                         href="#"
                                                     >
-                                                        <i className="bx bx-trash me-1"></i> Delete
+                                                        <i className="bx bx-trash me-1"></i>{" "}
+                                                        Delete
                                                     </a>
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
                                 </tr>
-                            ))} */}
+                            ))}
                         </tbody>
                     </table>
                 </div>
             </div>
-        </>
-    )
-}
 
+            <DeleteConfirmationModal
+                modalRef={modalRef}
+                title="Confirm Deletion"
+                message="Are you sure you want to delete this redirection?"
+                itemName={itemToDelete?.name}
+                onConfirm={() => handleDelete()}
+                processing={processing}
+            />
+
+            {/* Pagination */}
+            {redirections.links.length > 3 && (
+                <div className="row m-2">
+                    <div className="col-md-4">
+                        <p className="text-dark mb-0 mt-2">
+                            Showing {redirections.from ?? 0} to{" "}
+                            {redirections.to ?? 0} of {redirections.total}{" "}
+                            entries
+                        </p>
+                    </div>
+                    <div className="col-md-8">
+                        <div className="float-end">
+                            <Pagination
+                                links={redirections.links}
+                                query={query}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+}
