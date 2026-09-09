@@ -45,7 +45,6 @@ const filterMenuItem = (item, userPermissions) => {
 
 const Sidebar = () => {
     const { appLogo, modulesForSidebar = [], auth } = usePage().props;
-    console.log(modulesForSidebar);
     const permissions = auth?.permissions ?? [];
 
     const enhancedMenuData = menuData

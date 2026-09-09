@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import CodeEditor from '@/Components/Fields/CodeEditor';
 import JsonEditor from '@/Components/Fields/JsonEditor';
@@ -55,6 +55,7 @@ const Create = () => {
         group_label: '',
         group_name: '',
     });
+    const htmlEditorRef = useRef(null);
 
     const isAssocObject = (obj) => obj && typeof obj === 'object' && !Array.isArray(obj);
 
@@ -66,6 +67,7 @@ const Create = () => {
                 group_name: g.group_name || 'items',
                 parent_group: typeof g.parent_group === 'string' && g.parent_group.trim() ? g.parent_group.trim() : '',
                 fields: Array.isArray(g.fields) ? g.fields : [],
+                default_items: Array.isArray(g.default_items) ? g.default_items : [],
             }));
         }
         if (raw[0] && isAssocObject(raw[0]) && typeof raw[0].name === 'string') {
@@ -106,6 +108,7 @@ const Create = () => {
         { value: 'number', label: 'Number', icon: 'bx-hash' },
         { value: 'email', label: 'Email', icon: 'bx-envelope' },
         { value: 'url', label: 'URL', icon: 'bx-link' },
+        { value: 'link', label: 'Link', icon: 'bx-link-external' },
         { value: 'select', label: 'Dropdown Select', icon: 'bx-chevron-down' },
         { value: 'checkbox', label: 'Checkbox', icon: 'bx-check-square' },
         { value: 'radio', label: 'Radio Button', icon: 'bx-radio-circle' },
@@ -114,6 +117,71 @@ const Create = () => {
         { value: 'date', label: 'Date', icon: 'bx-calendar' },
         { value: 'color', label: 'Color Picker', icon: 'bx-palette' },
     ];
+
+    const cmsAttributeTypes = [
+        ['text', 'Text'],
+        ['textarea', 'Textarea'],
+        ['image', 'Image'],
+        ['number', 'Number'],
+        ['email', 'Email'],
+        ['date', 'Date'],
+        ['url', 'URL'],
+        ['select', 'Select'],
+        ['checkbox', 'Checkbox'],
+        ['code', 'Code'],
+        ['link', 'Link'],
+        ['repeatable', 'Repeatable'],
+    ];
+
+    const insertCmsAttribute = (type) => {
+        const editor = htmlEditorRef.current;
+        if (!editor) return;
+
+        const model = editor.getModel();
+        const position = editor.getPosition();
+        if (!model || !position) return;
+
+        const value = model.getValue();
+        const offset = model.getOffsetAt(position);
+        const openingStart = value.lastIndexOf('<', offset);
+        const openingEnd = value.indexOf('>', offset);
+        if (openingStart < 0 || openingEnd < 0) {
+            alert('Place the cursor inside an opening HTML tag first.');
+            return;
+        }
+
+        const openingTag = value.slice(openingStart, openingEnd + 1);
+        const tagMatch = openingTag.match(/^<([a-z][a-z0-9-]*)\b/i);
+        if (!tagMatch || /^<\//.test(openingTag) || /^<!/.test(openingTag)) {
+            alert('Place the cursor inside an opening HTML tag first.');
+            return;
+        }
+
+        const tagName = tagMatch[1].toLowerCase();
+        const defaults = {
+            h1: 'heading', h2: 'heading', h3: 'heading', h4: 'heading',
+            h5: 'heading', h6: 'heading', p: 'description', a: 'link',
+            img: 'image', li: 'item',
+        };
+        const name = defaults[tagName] || `${tagName}_field`;
+        const attribute = `data-${type}`;
+        if (new RegExp(`\\b${attribute}\\s*=`, 'i').test(openingTag)) {
+            alert(`This element already has ${attribute}.`);
+            return;
+        }
+
+        const insertOffset = openingStart + tagMatch[0].length;
+        const insertPosition = model.getPositionAt(insertOffset);
+        editor.executeEdits('insert-cms-attribute', [{
+            range: {
+                startLineNumber: insertPosition.lineNumber,
+                startColumn: insertPosition.column,
+                endLineNumber: insertPosition.lineNumber,
+                endColumn: insertPosition.column,
+            },
+            text: ` ${attribute}="${type === 'repeatable' ? 'list' : name}"`,
+        }]);
+    };
     
     useEffect(() => {
         if (data.name) {
@@ -1276,6 +1344,19 @@ const Create = () => {
                                     </div>
                                 </div>
                             </div>
+
+                            <div className="d-flex flex-wrap gap-2 mb-3">
+                                {cmsAttributeTypes.map(([type, label]) => (
+                                    <button
+                                        key={type}
+                                        type="button"
+                                        className="btn btn-outline-primary btn-sm"
+                                        onClick={() => insertCmsAttribute(type)}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
                             
                             <CodeEditor
                                 value={data.html_template}
@@ -1295,6 +1376,7 @@ const Create = () => {
     </div>
 </section>`}
                                 height="400px"
+                                onMount={(editor) => { htmlEditorRef.current = editor; }}
                             />
                             {errors.html_template && <div className="text-danger small">{errors.html_template}</div>}
                         </div>

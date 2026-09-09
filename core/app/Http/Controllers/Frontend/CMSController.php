@@ -33,6 +33,8 @@ class CMSController extends Controller
             ]);
         }
 
+        return $page->getRenderedHtml();
+
         return view('cms.show', [
             'page' => $page,
             'renderedHtml' => $page->getRenderedHtml(),

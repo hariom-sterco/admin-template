@@ -188,13 +188,11 @@ class PageSectionController extends Controller
     {
         $parser = new CmsHtmlParser();
         $htmlTemplate = $request->input('html_template', '');
+        $parsedCmsConfig = null;
         if (is_string($htmlTemplate) && trim($htmlTemplate) !== '' && $parser->containsCmsAttributes($htmlTemplate)) {
-            $parsed = $parser->generate($htmlTemplate);
+            $parsedCmsConfig = $parser->generate($htmlTemplate);
             $request->merge([
-                'html_template' => $parsed['template'],
-                'fields_config' => $parsed['fields_config'],
-                'mapping_config' => $parsed['mapping_config'],
-                'mapping_enabled' => !empty($parsed['mapping_config']),
+                'html_template' => $parsedCmsConfig['template'],
             ]);
         }
 
@@ -221,6 +219,19 @@ class PageSectionController extends Controller
         }
         if (is_array($rawMappingConfig)) {
             $request->merge(['mapping_config' => $this->normalizeMappingConfigGroups($rawMappingConfig)]);
+        }
+
+        if ($parsedCmsConfig !== null) {
+            $request->merge([
+                'fields_config' => $this->mergeFieldConfigs(
+                    $request->input('fields_config', []),
+                    $parsedCmsConfig['fields_config'] ?? []
+                ),
+                'mapping_config' => $this->mergeMappingConfigs(
+                    $request->input('mapping_config', []),
+                    $parsedCmsConfig['mapping_config'] ?? []
+                ),
+            ]);
         }
 
         $validated = $request->validate([
@@ -298,6 +309,7 @@ class PageSectionController extends Controller
                     'group_name' => $g['group_name'] ?? 'items',
                     'parent_group' => $parent,
                     'fields' => is_array($g['fields'] ?? null) ? $g['fields'] : [],
+                    'default_items' => is_array($g['default_items'] ?? null) ? $g['default_items'] : [],
                 ];
             }, $mappingConfig));
         }
@@ -314,5 +326,68 @@ class PageSectionController extends Controller
         }
 
         return [];
+    }
+
+    private function mergeFieldConfigs($submitted, $parsed): array
+    {
+        $submitted = is_array($submitted) ? $submitted : [];
+        $parsed = is_array($parsed) ? $parsed : [];
+        $existingNames = [];
+
+        foreach ($submitted as $field) {
+            if (is_array($field) && isset($field['name'])) {
+                $existingNames[$field['name']] = true;
+            }
+        }
+
+        foreach ($parsed as $field) {
+            if (is_array($field) && isset($field['name']) && !isset($existingNames[$field['name']])) {
+                $submitted[] = $field;
+                $existingNames[$field['name']] = true;
+            }
+        }
+
+        return array_values($submitted);
+    }
+
+    private function mergeMappingConfigs($submitted, $parsed): array
+    {
+        $submitted = $this->normalizeMappingConfigGroups($submitted);
+        $parsed = $this->normalizeMappingConfigGroups($parsed);
+        $groupsByName = [];
+
+        foreach ($submitted as $index => $group) {
+            $groupName = $group['group_name'] ?? 'items';
+            $groupsByName[$groupName] = $index;
+        }
+
+        foreach ($parsed as $parsedGroup) {
+            $groupName = $parsedGroup['group_name'] ?? 'items';
+            if (!isset($groupsByName[$groupName])) {
+                $submitted[] = $parsedGroup;
+                $groupsByName[$groupName] = count($submitted) - 1;
+                continue;
+            }
+
+            $index = $groupsByName[$groupName];
+            $existingFields = $submitted[$index]['fields'] ?? [];
+            $existingNames = [];
+            foreach ($existingFields as $field) {
+                if (is_array($field) && isset($field['name'])) {
+                    $existingNames[$field['name']] = true;
+                }
+            }
+
+            foreach ($parsedGroup['fields'] ?? [] as $field) {
+                if (is_array($field) && isset($field['name']) && !isset($existingNames[$field['name']])) {
+                    $existingFields[] = $field;
+                    $existingNames[$field['name']] = true;
+                }
+            }
+
+            $submitted[$index]['fields'] = array_values($existingFields);
+        }
+
+        return array_values($submitted);
     }
 }

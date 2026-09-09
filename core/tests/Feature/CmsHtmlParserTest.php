@@ -107,3 +107,79 @@ HTML;
         'content' => 'Lorem ipsum dolor sit amet.',
     ]);
 });
+
+it('parses scalar fields from element text and outputs text placeholders', function () {
+    $parser = new CmsHtmlParser();
+
+    $html = <<<HTML
+<div>
+    <span data-number="price">100</span>
+    <span data-email="contact_email">hello@example.com</span>
+    <span data-date="publish_date">September 3, 2026</span>
+    <span data-url="website">https://example.com</span>
+</div>
+HTML;
+
+    $result = $parser->generate($html);
+
+    expect($result['defaults']['data'])->toMatchArray([
+        'price' => '100',
+        'contact_email' => 'hello@example.com',
+        'publish_date' => 'September 3, 2026',
+        'website' => 'https://example.com',
+    ]);
+    expect($result['template'])->toContain('<span>{price}</span>');
+    expect($result['template'])->toContain('<span>{contact_email}</span>');
+    expect($result['template'])->toContain('<span>{publish_date}</span>');
+    expect($result['template'])->toContain('<span>{website}</span>');
+    expect($result['template'])->not->toContain('value="{');
+});
+
+it('keeps link text and url grouped under one logical field', function () {
+    $result = (new CmsHtmlParser())->generate(
+        '<a data-link="contact" href="/contact">Contact Us</a>'
+    );
+
+    expect($result['fields_config'])->toHaveCount(1);
+    expect($result['fields_config'][0])->toMatchArray([
+        'name' => 'contact',
+        'type' => 'link',
+        'default' => [
+            'text' => 'Contact Us',
+            'url' => '/contact',
+        ],
+    ]);
+    expect($result['defaults']['data']['contact'])->toBe([
+        'text' => 'Contact Us',
+        'url' => '/contact',
+    ]);
+    expect($result['template'])->toContain('href="{contact.url}"');
+    expect($result['template'])->toContain('{contact.text}');
+});
+
+it('creates text fields and defaults for consecutive plain repeatable list items', function () {
+    $html = <<<'HTML'
+<ol>
+    <li data-repeatable="list">Engineering</li>
+    <li>Management</li>
+    <li>Computer Applications</li>
+    <li>Pharmacy</li>
+</ol>
+HTML;
+
+    $result = (new CmsHtmlParser())->generate($html);
+
+    expect($result['mapping_config'][0]['group_name'])->toBe('list');
+    expect($result['mapping_config'][0]['fields'][0])->toMatchArray([
+        'name' => 'item',
+        'type' => 'text',
+        'default' => 'Engineering',
+    ]);
+    expect($result['defaults']['mapping_items']['list'])->toBe([
+        ['item' => 'Engineering'],
+        ['item' => 'Management'],
+        ['item' => 'Computer Applications'],
+        ['item' => 'Pharmacy'],
+    ]);
+    expect(substr_count($result['template'], '{item.item}'))->toBe(1);
+});
