@@ -140,6 +140,10 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 
     //Redirection
     Route::resource('redirection', RedirectionController::class)->except(['destroy']);
+     Route::prefix('redirection')->group(function () {
+        Route::get('/{redirection}/destroy', [RedirectionController::class, 'destroy'])->name('redirection.destroy');
+    });
+
 
 
     //Support Information
